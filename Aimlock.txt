@@ -1,71 +1,71 @@
- local mouse = game.Players.LocalPlayer:GetMouse()
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local camera = workspace.CurrentCamera
-        local RunService = game:GetService("RunService")
-        local UserInputService = game:GetService("UserInputService")
+local mouse = game.Players.LocalPlayer:GetMouse()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-        local aimLockEnabled = false
-        local targetPlayer = nil
+local aimLockEnabled = false
+local targetPlayer = nil
 
-        -- Funktion för att hitta spelaren närmast crosshair
-        local function getClosestPlayerToCrosshair()
-            local closest = nil
-            local shortestDistance = math.huge
+-- Funktion för att hitta spelaren närmast crosshair
+local function getClosestPlayerToCrosshair()
+    local closest = nil
+    local shortestDistance = math.huge
 
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local pos, onScreen = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
-                    if onScreen then
-                        local dist = (Vector2.new(mouse.X, mouse.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
-                        if dist < shortestDistance and dist < 200 then
-                            shortestDistance = dist
-                            closest = player
-                        end
-                    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local pos, onScreen = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+            if onScreen then
+                local dist = (Vector2.new(mouse.X, mouse.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
+                if dist < shortestDistance and dist < 200 then
+                    shortestDistance = dist
+                    closest = player
                 end
             end
-
-            return closest
         end
+    end
 
-        -- Toggle Aimlock via Q
-        UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end
-            if input.KeyCode == Enum.KeyCode.Q then
-                if aimLockEnabled then
-                    aimLockEnabled = false
-                    targetPlayer = nil
-                    Rayfield:Notify({
-                        Title = "Aimlock Av",
-                        Content = "Ingen spelare låst.",
-                        Duration = 2
-                    })
-                else
-                    local foundPlayer = getClosestPlayerToCrosshair()
-                    if foundPlayer then
-                        targetPlayer = foundPlayer
-                        aimLockEnabled = true
-                        Rayfield:Notify({
-                            Title = "Aimlock På",
-                            Content = "Siktar på: " .. foundPlayer.Name,
-                            Duration = 2
-                        })
-                    else
-                        Rayfield:Notify({
-                            Title = "Ingen nära crosshair",
-                            Content = "Försök igen närmare.",
-                            Duration = 2
-                        })
-                    end
-                end
-            end
-        end)
+    return closest
+end
 
-        -- Kameran följer målet när aktivt
-        RunService.RenderStepped:Connect(function()
-            if aimLockEnabled and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local targetPos = targetPlayer.Character.HumanoidRootPart.Position
-                camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
+-- Toggle Aimlock via Q
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Q then
+        if aimLockEnabled then
+            aimLockEnabled = false
+            targetPlayer = nil
+            Rayfield:Notify({
+                Title = "Aimlock Av",
+                Content = "Ingen spelare låst.",
+                Duration = 2
+            })
+        else
+            local foundPlayer = getClosestPlayerToCrosshair()
+            if foundPlayer then
+                targetPlayer = foundPlayer
+                aimLockEnabled = true
+                Rayfield:Notify({
+                    Title = "Aimlock På",
+                    Content = "Siktar på: " .. foundPlayer.Name,
+                    Duration = 2
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Ingen nära crosshair",
+                    Content = "Försök igen närmare.",
+                    Duration = 2
+                })
             end
-        end)
+        end
+    end
+end)
+
+-- Kameran följer målet när aktivt
+RunService.RenderStepped:Connect(function()
+    if aimLockEnabled and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetPos = targetPlayer.Character.HumanoidRootPart.Position
+        camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
+    end
+end)

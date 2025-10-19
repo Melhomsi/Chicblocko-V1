@@ -1,71 +1,69 @@
-local mouse = game.Players.LocalPlayer:GetMouse()
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local camera = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-
-local aimLockEnabled = false
-local targetPlayer = nil
+-- =====================================
+-- AIMLOCK (ersätter det gamla dåliga)
+-- =====================================
+local aimFOV = 20 -- FOV för aimlock
+local aimRange = 500
+local aimKey = Enum.UserInputType.MouseButton2
+local aimEnabled = false
+local aiming = false
+local currentTarget = nil
 
 -- Funktion för att hitta spelaren närmast crosshair
-local function getClosestPlayerToCrosshair()
+local function getClosestTarget()
     local closest = nil
-    local shortestDistance = math.huge
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, onScreen = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
-            if onScreen then
-                local dist = (Vector2.new(mouse.X, mouse.Y) - Vector2.new(pos.X, pos.Y)).Magnitude
-                if dist < shortestDistance and dist < 200 then
-                    shortestDistance = dist
-                    closest = player
+    local shortestDist = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+    for _, plr in pairs(Players:GetPlayers()) do
+        local char = plr.Character
+        if plr ~= LocalPlayer and char and char:FindFirstChild("HumanoidRootPart") then
+            local head = char:FindFirstChild("Head")
+            if head then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
+                    if dist < aimFOV and dist < shortestDist then
+                        closest = head
+                        shortestDist = dist
+                    end
                 end
             end
         end
     end
-
     return closest
 end
 
--- Toggle Aimlock via Q
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.Q then
-        if aimLockEnabled then
-            aimLockEnabled = false
-            targetPlayer = nil
-            Rayfield:Notify({
-                Title = "Aimlock Av",
-                Content = "Ingen spelare låst.",
-                Duration = 2
-            })
-        else
-            local foundPlayer = getClosestPlayerToCrosshair()
-            if foundPlayer then
-                targetPlayer = foundPlayer
-                aimLockEnabled = true
-                Rayfield:Notify({
-                    Title = "Aimlock På",
-                    Content = "Siktar på: " .. foundPlayer.Name,
-                    Duration = 2
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Ingen nära crosshair",
-                    Content = "Försök igen närmare.",
-                    Duration = 2
-                })
-            end
-        end
+local function aimAtHead(targetHead)
+    if not targetHead then return end
+    local headPos, onScreen = Camera:WorldToViewportPoint(targetHead.Position)
+    if onScreen then
+        local mouse = UserInputService:GetMouseLocation()
+        local delta = Vector2.new(headPos.X, headPos.Y) - Vector2.new(mouse.X, mouse.Y)
+        local sensitivity = 1
+        pcall(function() mousemoverel(delta.X * sensitivity, delta.Y * sensitivity) end)
+    end
+end
+
+-- Input-events för aimlock
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.UserInputType == aimKey or input.KeyCode == aimKey then
+        aiming = true
     end
 end)
 
--- Kameran följer målet när aktivt
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == aimKey or input.KeyCode == aimKey then
+        aiming = false
+        currentTarget = nil
+    end
+end)
+
+-- Main loop för aimlock
 RunService.RenderStepped:Connect(function()
-    if aimLockEnabled and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local targetPos = targetPlayer.Character.HumanoidRootPart.Position
-        camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
+    if aimEnabled and aiming then
+        currentTarget = currentTarget and currentTarget.Parent and currentTarget or getClosestTarget()
+        if currentTarget then
+            aimAtHead(currentTarget)
+        end
     end
 end)

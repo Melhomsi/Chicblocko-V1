@@ -1,30 +1,37 @@
--- =====================================
--- AIMLOCK (ersätter det gamla dåliga)
--- =====================================
-local aimFOV = 20 -- FOV för aimlock
-local aimRange = 500
-local aimKey = Enum.UserInputType.MouseButton2
-local aimEnabled = false
+-- Aimlock.lua
+-- Fungerar med Rayfield Toggle (håll högerklick)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- ===== INSTÄLLNINGAR =====
+local aimEnabled = true          -- Toggle via Rayfield
+local aimFOV = 200               -- Max distans från crosshair
+local aimKey = Enum.UserInputType.MouseButton2 -- Högerklick
+
+-- ===== INTERNT =====
 local aiming = false
 local currentTarget = nil
 
--- Funktion för att hitta spelaren närmast crosshair
+-- Hitta närmaste spelarens huvud till crosshair
 local function getClosestTarget()
     local closest = nil
     local shortestDist = math.huge
     local mousePos = UserInputService:GetMouseLocation()
+
     for _, plr in pairs(Players:GetPlayers()) do
         local char = plr.Character
-        if plr ~= LocalPlayer and char and char:FindFirstChild("HumanoidRootPart") then
-            local head = char:FindFirstChild("Head")
-            if head then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-                if onScreen then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
-                    if dist < aimFOV and dist < shortestDist then
-                        closest = head
-                        shortestDist = dist
-                    end
+        if plr ~= LocalPlayer and char and char:FindFirstChild("Head") then
+            local head = char.Head
+            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
+                if dist < shortestDist and dist < aimFOV then
+                    shortestDist = dist
+                    closest = head
                 end
             end
         end
@@ -32,38 +39,43 @@ local function getClosestTarget()
     return closest
 end
 
-local function aimAtHead(targetHead)
-    if not targetHead then return end
-    local headPos, onScreen = Camera:WorldToViewportPoint(targetHead.Position)
-    if onScreen then
-        local mouse = UserInputService:GetMouseLocation()
-        local delta = Vector2.new(headPos.X, headPos.Y) - Vector2.new(mouse.X, mouse.Y)
-        local sensitivity = 1
-        pcall(function() mousemoverel(delta.X * sensitivity, delta.Y * sensitivity) end)
+-- Fokusera kameran på target
+local function aimAt(targetHead)
+    if targetHead then
+        local headPos, onScreen = Camera:WorldToViewportPoint(targetHead.Position)
+        if onScreen then
+            local mouse = UserInputService:GetMouseLocation()
+            local delta = Vector2.new(headPos.X, headPos.Y) - Vector2.new(mouse.X, mouse.Y)
+            pcall(function()
+                mousemoverel(delta.X, delta.Y)
+            end)
+        end
     end
 end
 
--- Input-events för aimlock
+-- ===== INPUT EVENTS =====
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
-    if input.UserInputType == aimKey or input.KeyCode == aimKey then
+    if input.UserInputType == aimKey then
         aiming = true
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == aimKey or input.KeyCode == aimKey then
+    if input.UserInputType == aimKey then
         aiming = false
         currentTarget = nil
     end
 end)
 
--- Main loop för aimlock
+-- ===== RUNSERVICE LOOP =====
 RunService.RenderStepped:Connect(function()
     if aimEnabled and aiming then
-        currentTarget = currentTarget and currentTarget.Parent and currentTarget or getClosestTarget()
+        if not currentTarget or not currentTarget.Parent then
+            currentTarget = getClosestTarget()
+        end
         if currentTarget then
-            aimAtHead(currentTarget)
+            aimAt(currentTarget)
         end
     end
 end)

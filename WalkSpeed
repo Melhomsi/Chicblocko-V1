@@ -1,1 +1,26 @@
+-- WalkSpeed.lua
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 
+local speedEnabled = true
+local playerSpeed = 21
+local loopConn
+
+loopConn = RunService.RenderStepped:Connect(function()
+    if not speedEnabled then
+        loopConn:Disconnect()
+        return
+    end
+    if LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid")
+        if humanoid and humanoid.WalkSpeed ~= playerSpeed then
+            humanoid.WalkSpeed = playerSpeed
+        end
+    end
+end)
+
+return function(toggle, speed)
+    speedEnabled = toggle
+    if speed then playerSpeed = speed end
+end

@@ -1,0 +1,70 @@
+-- Silent Aim med FOV-cirkel
+local Players = game:GetService("Players")
+local Camera = workspace.CurrentCamera
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Inställningar
+local silentAimEnabled = false
+local aimFOV = 100 -- pixels på skärmen
+local currentTarget = nil
+
+-- FOV Circle
+local fovCircle = Drawing.new("Circle")
+fovCircle.Thickness = 2
+fovCircle.NumSides = 64
+fovCircle.Radius = aimFOV
+fovCircle.Color = Color3.fromRGB(0, 255, 0)
+fovCircle.Filled = false
+fovCircle.Visible = false
+fovCircle.Transparency = 1
+
+-- Hitta närmsta mål inom FOV
+local function getClosestTarget()
+    local closest = nil
+    local shortestDist = math.huge
+    local mouseLocation = UserInputService:GetMouseLocation()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+            local head = plr.Character.Head
+            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(mouseLocation.X, mouseLocation.Y)).Magnitude
+                if dist < aimFOV and dist < shortestDist then
+                    closest = head
+                    shortestDist = dist
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- Main loop
+RunService.RenderStepped:Connect(function()
+    local mousePos = UserInputService:GetMouseLocation()
+    fovCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
+    fovCircle.Radius = aimFOV
+    fovCircle.Visible = silentAimEnabled
+
+    if silentAimEnabled then
+        currentTarget = currentTarget and currentTarget.Parent and currentTarget or getClosestTarget()
+        if currentTarget then
+            -- Flytta projektiler/skott mot huvudet (Silent Aim)
+            -- Exempel: sätt target position i t.ex. Gun script
+            -- Detta beror på vilket vapen/script du använder
+            -- Här demonstrerar vi bara målet som ett värde:
+            _G.SilentAimTarget = currentTarget.Position
+        else
+            _G.SilentAimTarget = nil
+        end
+    else
+        _G.SilentAimTarget = nil
+    end
+end)
+
+-- Toggle-funktion
+return function(Value)
+    silentAimEnabled = Value
+end

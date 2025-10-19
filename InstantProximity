@@ -1,0 +1,17 @@
+-- InstantProximity.lua
+local toggleEnabled = true
+local workspace = game:GetService("Workspace")
+
+local function runProximity()
+    if not toggleEnabled then return end
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            v.HoldDuration = 0
+        end
+    end
+end
+
+return function(toggle)
+    toggleEnabled = toggle
+    if toggle then runProximity() end
+end

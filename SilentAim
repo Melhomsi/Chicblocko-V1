@@ -1,39 +1,36 @@
--- Silent Aim med FOV-cirkel
+-- SilentAim.lua
 local Players = game:GetService("Players")
-local Camera = workspace.CurrentCamera
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- Inställningar
-local silentAimEnabled = false
-local aimFOV = 100 -- pixels på skärmen
-local currentTarget = nil
-
--- FOV Circle
+local aiming = false
+local fovRadius = 100
 local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 2
 fovCircle.NumSides = 64
-fovCircle.Radius = aimFOV
-fovCircle.Color = Color3.fromRGB(0, 255, 0)
+fovCircle.Radius = fovRadius
+fovCircle.Color = Color3.fromRGB(0,255,0)
 fovCircle.Filled = false
 fovCircle.Visible = false
 fovCircle.Transparency = 1
 
--- Hitta närmsta mål inom FOV
+local currentTarget = nil
+local conn = nil
+
 local function getClosestTarget()
+    local mousePos = UserInputService:GetMouseLocation()
     local closest = nil
     local shortestDist = math.huge
-    local mouseLocation = UserInputService:GetMouseLocation()
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
-            local head = plr.Character.Head
-            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            local headPos, onScreen = Camera:WorldToViewportPoint(plr.Character.Head.Position)
             if onScreen then
-                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(mouseLocation.X, mouseLocation.Y)).Magnitude
-                if dist < aimFOV and dist < shortestDist then
-                    closest = head
+                local dist = (Vector2.new(headPos.X, headPos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
+                if dist < shortestDist and dist < fovRadius then
                     shortestDist = dist
+                    closest = plr.Character.Head
                 end
             end
         end
@@ -41,30 +38,29 @@ local function getClosestTarget()
     return closest
 end
 
--- Main loop
-RunService.RenderStepped:Connect(function()
-    local mousePos = UserInputService:GetMouseLocation()
-    fovCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
-    fovCircle.Radius = aimFOV
-    fovCircle.Visible = silentAimEnabled
-
-    if silentAimEnabled then
-        currentTarget = currentTarget and currentTarget.Parent and currentTarget or getClosestTarget()
-        if currentTarget then
-            -- Flytta projektiler/skott mot huvudet (Silent Aim)
-            -- Exempel: sätt target position i t.ex. Gun script
-            -- Detta beror på vilket vapen/script du använder
-            -- Här demonstrerar vi bara målet som ett värde:
-            _G.SilentAimTarget = currentTarget.Position
-        else
-            _G.SilentAimTarget = nil
+local function aimLoop()
+    currentTarget = getClosestTarget()
+    if currentTarget then
+        local headPos, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
+        if onScreen then
+            local delta = Vector2.new(headPos.X, headPos.Y) - Vector2.new(UserInputService:GetMouseLocation())
+            pcall(function()
+                mousemoverel(delta.X, delta.Y)
+            end)
         end
-    else
-        _G.SilentAimTarget = nil
     end
-end)
+end
 
--- Toggle-funktion
-return function(Value)
-    silentAimEnabled = Value
+return function(active)
+    fovCircle.Visible = active
+    if conn then conn:Disconnect() conn=nil end
+    if active then
+        conn = RunService.RenderStepped:Connect(function()
+            aimLoop()
+            if fovCircle.Visible then
+                local mousePos = UserInputService:GetMouseLocation()
+                fovCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
+            end
+        end)
+    end
 end
